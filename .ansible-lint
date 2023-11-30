@@ -2,3 +2,5 @@ warn_list:  # or 'skip_list' to silence them completely
   - no-changed-when  # Commands should not change things if nothing needs do
 skip_list:
   - no-handler  # Tasks that run when changed should likely be handlers
+  - command-instead-of-module  # Using command rather than module
+  - command-instead-of-shell  # Use shell only when shell functionality is requ

@@ -12,7 +12,11 @@
   when: not hashicorp_repository.stat.exists
   block:
     - name: Download and dearmor HashiCorp keyring
-      ansible.builtin.shell: wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+      ansible.builtin.shell: >-
+        if test -v BASH; then set -o pipefail; fi
+        wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+      executable: /bin/bash
+      changed_when: false
 
     - name: Verify HashiCorp keyring
       ansible.builtin.shell: gpg --no-default-keyring --keyring /usr/share/keyrings/hashicorp-archive-keyring.gpg --fingerprint
