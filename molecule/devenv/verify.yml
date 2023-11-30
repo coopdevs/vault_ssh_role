@@ -1,0 +1,62 @@
+---
+- name: Verify SSH Configuration
+  hosts: all
+  user: root
+  vars:
+    hardening: false
+  tasks:
+    - name: Check if SSH is running
+      ansible.builtin.service:
+        name: ssh
+        state: started
+
+    - name: Check for TrustedUserCAKeys in sshd_config
+      ansible.builtin.command: grep "TrustedUserCAKeys /etc/ssh/trusted-user-ca-keys.pem" /etc/ssh/sshd_config
+      register: grep_trusted_user_ca_keys
+      failed_when: grep_trusted_user_ca_keys.rc != 0
+      changed_when: false
+
+    - name: Check for PubkeyAuthentication in sshd_config
+      ansible.builtin.command: grep "PubkeyAuthentication yes" /etc/ssh/sshd_config
+      register: grep_pubkey_authentication
+      failed_when: grep_pubkey_authentication.rc != 0
+      changed_when: false
+
+    - name: Check for AuthorizedPrincipalsFile in sshd_config
+      ansible.builtin.command: grep "AuthorizedPrincipalsFile /etc/ssh/auth_principals/%u" /etc/ssh/sshd_config
+      register: grep_authorized_principals_file
+      failed_when: grep_authorized_principals_file.rc != 0
+      changed_when: false
+      when:  hardening | bool | default(false)
+
+    - name: Check for AuthorizedPrincipalsFile for each user
+      ansible.builtin.command: grep "AuthorizedPrincipalsFile /etc/ssh/auth_principals/{{ item }}" /etc/ssh/sshd_config
+      register: grep_authorized_principals_file
+      failed_when: grep_authorized_principals_file.rc != 0
+      changed_when: false
+      with_items: "{{ users_list }}"
+      when:  hardening | bool | default(false)
+
+
+    - name: Check that vault client is installed
+      ansible.builtin.command: which vault
+      register: vault_client
+      failed_when: vault_client.rc != 0
+      changed_when: false
+      when:  hardening | bool | default(false)
+
+    - name: Check that HostCertificate is set in sshd_config
+      ansible.builtin.command: grep "HostCertificate /etc/ssh/ssh_host_rsa_key-cert.pub" /etc/ssh/sshd_config
+      register: grep_host_certificate
+      failed_when: grep_host_certificate.rc != 0
+      changed_when: false
+      when:  hardening | bool | default(false)
+
+    - name: Check that signed HostKey exists
+      ansible.builtin.stat:
+        path: /etc/ssh/ssh_host_rsa_key-cert.pub
+      register: host_key
+      failed_when: host_key.stat.exists == False
+      changed_when: false
+      when:  hardening | bool | default(false)
+

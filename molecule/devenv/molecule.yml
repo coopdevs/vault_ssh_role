@@ -1,0 +1,25 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: delegated
+platforms:
+  - name: ansible-role.local
+    hostname: "ansible-role.local"
+    user: root
+provisioner:
+  name: ansible
+  config_options:
+      defaults:
+        ANSIBLE_CONFIG: "/ansible.cfg"
+  playbooks:
+    converge: converge.yml
+  hooks:
+    pre_create:
+      - name: Create devenv
+        shell: setup_devenv.sh
+    post_destroy:
+      - name: Destroy devenv
+        shell: destroy_devenv.sh
+verifier:
+  name: ansible

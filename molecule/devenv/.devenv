@@ -1,0 +1,13 @@
+# shellcheck disable=SC2148
+NAME="ansible-role"
+# shellcheck disable=SC2034
+DISTRIBUTION="ubuntu"
+# shellcheck disable=SC2034
+RELEASE="bionic"
+# shellcheck disable=SC2034
+ARCH="amd64"
+# shellcheck disable=SC2034
+HOST="$NAME.local"
+
+# shellcheck disable=SC2034
+PYTHON_INTERPRETER=python3

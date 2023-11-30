@@ -1,0 +1,8 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: "Include vault_ssh_role"
+      ansible.builtin.include_role:
+        name: "vault_ssh_role"
