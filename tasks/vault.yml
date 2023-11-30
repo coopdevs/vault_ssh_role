@@ -1,0 +1,66 @@
+---
+#sudo apt update && sudo apt install gpg wget
+# wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+# gpg --no-default-keyring --keyring /usr/share/keyrings/hashicorp-archive-keyring.gpg --fingerprint
+# echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+- name: Check if HashiCorp repository is already added
+  ansible.builtin.stat:
+    path: /etc/apt/sources.list.d/hashicorp.list
+  register: hashicorp_repository
+
+- name: Add HashiCorp repository
+  when: not hashicorp_repository.stat.exists
+  block:
+    - name: Download and dearmor HashiCorp keyring
+      ansible.builtin.shell: wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+    - name: Verify HashiCorp keyring
+      ansible.builtin.shell: gpg --no-default-keyring --keyring /usr/share/keyrings/hashicorp-archive-keyring.gpg --fingerprint
+      register: hashicorp_keyring
+      changed_when: false
+
+    - name: Get host architecture
+      ansible.builtin.shell: dpkg --print-architecture
+      register: dpkg_architecture
+      changed_when: false
+
+    - name: Add HashiCorp repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch={{ dpkg_architecture.stdout }} signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+        filename: hashicorp
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+
+- name: Set Vault token in environment variable
+  ansible.builtin.lineinfile:
+    path: /etc/environment
+    line: 'VAULT_TOKEN="{{ vault_token }}"'
+    create: yes
+    mode: "0644"
+  become: true
+
+- name: Set Vault address in environment variable
+  ansible.builtin.lineinfile:
+    path: /etc/environment
+    line: 'VAULT_ADDR="{{ vault_address }}"'
+    create: yes
+    mode: "0644"
+
+- name: Load environment variables
+  ansible.builtin.shell: source /etc/environment
+  become: true
+  failed_when: false
+  changed_when: false
+
+- name: Ensure Vault service is running
+  ansible.builtin.service:
+    name: vault
+    enabled: False
+
+- name: Install Vault client
+  ansible.builtin.apt:
+    name: vault
+    state: present
+  when: ansible_os_family == "Debian"
