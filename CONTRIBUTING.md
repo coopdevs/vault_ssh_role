@@ -8,7 +8,7 @@ Follow [Installing and using pyenv](https://github.com/coopdevs/handbook/wiki/In
 
 ```sh
 pyenv install 3.8.12
-pyenv virtualenv 3.8.12 role-name
+pyenv virtualenv 3.8.12 vault_ssh_role
 ```
 
 ### Configure ansible environment

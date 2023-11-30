@@ -1,2 +1,7 @@
 ---
-# defaults file for ansible-role
+# defaults file for vault_ssh_setup
+vault_public_key: "https://github.com/oyale.keys"
+vault_public_key_url: "{{ vault_public_key }}"
+ssh_service_name: "ssh"
+dependencies: ["curl", "openssh-server"]
+authorized_principals_file: "/etc/ssh/auth_principals/%u"
