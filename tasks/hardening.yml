@@ -1,0 +1,54 @@
+---
+- name: Ensure AuthorizedPrincipalsFile directory exists
+  ansible.builtin.file:
+    path: "/etc/ssh/auth_principals"
+    state: directory
+    mode: "0755"
+
+- name: Check if exists the authorized_principals_file for each user
+  ansible.builtin.stat:
+    path: "{{ authorized_principals_file | replace('%u', item) }}"
+  loop: "{{ users_list }}"
+  register: authorized_principals_file_exists
+
+- name: Create authorized_principals_file for each user only if not exists
+  ansible.builtin.file:
+    path: "{{ item.invocation.module_args.path }}"
+    state: touch
+    mode: '0644'
+  loop: "{{ authorized_principals_file_exists.results }}"
+  when:
+    - not item.stat.exists
+
+- name: Configure AuthorizedPrincipalsFile
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?AuthorizedPrincipalsFile'
+    line: 'AuthorizedPrincipalsFile /etc/ssh/auth_principals/%u'
+    state: present
+  notify: Restart ssh
+- name: Ensure vault is installed and configured
+  ansible.builtin.include_tasks: vault.yml
+
+- name: Automate host key signing with Vault
+  ansible.builtin.command:
+    cmd: "vault write -field=signed_key ssh-client-signer/sign/hostrole public_key=@/etc/ssh/ssh_host_rsa_key.pub"
+  register: vault_signed_key
+  changed_when: false
+
+- name: Configure HostCertificate in sshd_config
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?HostCertificate'
+    line: 'HostCertificate /etc/ssh/ssh_host_rsa_key-cert.pub'
+    state: present
+  notify: Restart ssh
+
+- name: Add the host CA public key to known_hosts on clients
+  ansible.builtin.lineinfile:
+    path: "/etc/ssh/ssh_known_hosts"
+    line: "{{ host_ca_public_key }}"
+    create: yes
+    mode: "0644"
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['all'] }}"

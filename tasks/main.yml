@@ -27,11 +27,12 @@
   failed_when: false
 
 - name: Configure sshd to use the trusted CA keys
-  template:
-    src: sshd_config.j2
-    dest: /etc/ssh/sshd_config
-    mode: "0644"
-  notify: restart ssh
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?TrustedUserCAKeys'
+    line: 'TrustedUserCAKeys /etc/ssh/trusted-user-ca-keys.pem'
+    state: present
+  notify: Set SSHD to be reloaded
   when: not trusted_user_ca_keys_configured.stdout
 
 - name: Ensure PubkeyAuthentication is enabled
@@ -40,38 +41,16 @@
     regexp: "^#?PubkeyAuthentication"
     line: "PubkeyAuthentication yes"
     state: present
-  notify: restart ssh
+  notify: Restart ssh
 
-- name: Ensure AuthorizedPrincipalsFile is configured
-  file:
-    path: "/etc/ssh/auth_principals"
-    state: directory
-    mode: "0755"
-  when: hardening | default(False) | bool
-
-- name: Check if exists the authorized_principals_file for each user
-  stat:
-    path: "{{ authorized_principals_file | replace('%u', item) }}"
-  loop: "{{ users_list }}"
-  register: authorized_principals_file_exists
-  when: hardening | default(False) | bool
-
-- name: Create authorized_principals_file for each user only if not exists
-  file:
-    path: "{{ item.invocation.module_args.path }}"
-    state: touch
-    mode: '0644'
-  loop: "{{ authorized_principals_file_exists.results }}"
-  when:
-    - hardening | default(False) | bool
-    - not item.stat.exists
-
-
-- name: Configure AuthorizedPrincipalsFile
-  lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?AuthorizedPrincipalsFile'
-    line: 'AuthorizedPrincipalsFile /etc/ssh/auth_principals/%u'
+- name: Create users
+  ansible.builtin.user:
+    name: "{{ item }}"
     state: present
-  notify: restart sshd
+    createhome: yes
+    shell: /bin/bash
+  loop: "{{ users_list }}"
+
+- name: Include hardening tasks
+  ansible.builtin.include_tasks: hardening.yml
   when: hardening | default(False) | bool
