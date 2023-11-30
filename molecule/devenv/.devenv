@@ -1,0 +1,9 @@
+# File created with devenv init command
+
+NAME="ansible-role"
+DISTRIBUTION="ubuntu"
+RELEASE="bionic"
+ARCH="amd64"
+HOST="$NAME.local"
+
+PYTHON_INTERPRETER=python3

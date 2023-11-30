@@ -1,0 +1,26 @@
+---
+- name: Verify SSH Configuration
+  hosts: all
+  tasks:
+    - name: Check if SSH is running
+      service:
+        name: ssh
+        state: started
+
+    - name: Check for TrustedUserCAKeys in sshd_config
+      command: grep "TrustedUserCAKeys /etc/ssh/trusted-user-ca-keys.pem" /etc/ssh/sshd_config
+      register: grep_trusted_user_ca_keys
+      failed_when: grep_trusted_user_ca_keys.rc != 0
+      changed_when: false
+
+    - name: Check for AuthorizedPrincipalsFile in sshd_config
+      command: grep "AuthorizedPrincipalsFile /etc/ssh/auth_principals/%u" /etc/ssh/sshd_config
+      register: grep_authorized_principals_file
+      failed_when: grep_authorized_principals_file.rc != 0
+      changed_when: false
+
+    - name: Check for PubkeyAuthentication in sshd_config
+      command: grep "PubkeyAuthentication yes" /etc/ssh/sshd_config
+      register: grep_pubkey_authentication
+      failed_when: grep_pubkey_authentication.rc != 0
+      changed_when: false
