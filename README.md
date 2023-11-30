@@ -1,48 +1,59 @@
-# Vault SSH Setup Role
+# Ansible Role: Vault SSH Role
 
-The `vault_ssh_setup` role is designed to configure SSH servers to use SSH keys signed by HashiCorp Vault. This role ensures that your SSH configuration is secure and manageable, especially useful for environments where SSH key management and server access need to be tightly controlled.
+## Overview
 
-## Role Tasks
+This role configures a host to use SSH keys signed by HashiCorp Vault, streamlining SSH key management.
 
-This role performs the following tasks:
+Initially, it sets up the Vault client and configures SSH to use Vault-signed keys.
 
-1. **Install Dependencies:** Installs necessary packages like `curl` and `openssh-server`.
+When the `hardening` variable is enabled, the role additionally applies enhanced security measures.
 
-2. **Ensure SSH Service is Running:** Makes sure that the SSH daemon (`sshd`) is running and enabled on the system.
+## Requirements
 
-3. **Download Vault's Public Key:** Retrieves the public key from a specified URL and saves it to the server for later use in validating signed SSH keys.
-
-4. **Configure `sshd_config`:** Updates the SSH daemon configuration to use the trusted CA keys provided by Vault.
-
-5. **Enable `PubkeyAuthentication`:** Ensures that public key authentication is enabled in the SSH configuration.
-
-6. **Configure `AuthorizedPrincipalsFile`:** If hardening is enabled, sets up and configures an `AuthorizedPrincipalsFile` for additional security measures.
-
-7. **Create `authorized_principals_file` for Users:** For each specified user, ensures that an `authorized_principals_file` exists.
+- Ansible 2.9 or higher.
+- Operational HashiCorp Vault server.
+- A Vault token with the `create` and `update` capabilities on the `ssh-client-signer` endpoint.
 
 ## Role Variables
 
-- `vault_public_key_url`: URL of the Vault server's public key. Default is set to the provided `vault_public_key`.
-- `ssh_service_name`: The name of the SSH service. Default is `"ssh"`.
-- `dependencies`: A list of packages required by the role. Defaults to `["curl", "openssh-server"]`.
-- `authorized_principals_file`: The path template for the authorized principals file, with `%u` replaced by each username. Default is `"/etc/ssh/auth_principals/%u"`.
-- `deploy_user`: The default user for deployment operations. Default is `"coopbot"`.
-- `users_list`: A list of users for whom the `authorized_principals_file` will be configured. Default includes the `deploy_user`.
-- `hardening`: Boolean value to enable additional security measures. Default is `True`.
+Below are the variables you can override, along with their default values:
 
-## Hardening Option in Vault SSH Setup Role
+### `main.yml` Variables
 
-The `vault_ssh_setup` role includes an optional hardening feature, designed to enhance the security of the SSH service on your servers. This option is controlled by the `hardening` variable in the role. When enabled, it activates additional security measures, particularly around SSH key management and user authentication.
+The most relevant variables are:
 
-### What Does Hardening Do?
+- `deploy_user`: User for assigning SSH keys. Default: `"coopbot"`
+- `users_list`: Users to configure for SSH access. Default: `["{{ deploy_user }}"]`
+- `hardening`: Apply additional security measures (True/False). Default: `False`
+- `vault_address`: URL of the Vault server. Default: `"http://127.0.0.1:8200"`
+- `vault_public_key`: URL or path for the public key of the Vault. Default: `""`
 
-When the `hardening` feature is enabled, the role performs the following additional tasks:
+### `secrets.yml` Variables
 
-1. **Configure `AuthorizedPrincipalsFile`:** The role sets up the `AuthorizedPrincipalsFile` in the SSH configuration (`sshd_config`). This file specifies a list of principals (users) who are authorized to access each account, providing an extra layer of control over SSH access.
+Ensure to update this file with your own secrets and encrypt them with Ansible Vault.
 
-2. **Create `authorized_principals_file` for Each User:** If the `authorized_principals_file` does not exist for a user listed in `users_list`, the role will create it. This ensures that each user has a designated file that can be used to specify their authorized keys.
+```yaml
+---
+vault_address: "https://vault.example.com"
+vault_token: "token"
+```
 
-3. **Restrict Access Based on Principals:** Only users with their principals defined in the `authorized_principals_file` are allowed to access the server, tightening security by limiting SSH access to a controlled list of users and their corresponding keys.
+## Role Behavior
+
+### Without hardening
+
+Sets up SSH to use keys signed by HashiCorp Vault (main.yml).
+
+- Download Vault public key.
+- Configure SSH to use Vault-signed keys.
+
+### With hardening Enabled
+
+Performs the above tasks and applies additional security configurations (`hardening.yml`).
+
+- Install `vault` client.
+- Sign `HostCertificate` with Vault and set up it to be used by SSHD. This allows the host to be authenticated by Vault.
+- Enable `AuthorizedPrincipalsFile`. This file specifies a list of principals (users) who are authorized to access each account, providing an extra layer of control over SSH access.
 
 ## Example Playbook
 
