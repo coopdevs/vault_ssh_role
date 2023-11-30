@@ -59,4 +59,3 @@
       failed_when: host_key.stat.exists == False
       changed_when: false
       when:  hardening | bool | default(false)
-
