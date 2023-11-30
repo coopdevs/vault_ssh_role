@@ -2,3 +2,4 @@
 .github/workflows/dependency-review.yml yaml[line-length]
 .github/workflows/dependency-review.yml yaml[truthy]
 .github/workflows/main.yml yaml[truthy]
+molecule/devenv/destroy.yml no-handler

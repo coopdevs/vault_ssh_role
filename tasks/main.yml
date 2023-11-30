@@ -1,2 +1,77 @@
 ---
-# tasks file for ansible-role
+# tasks file for vault_ssh_setup
+- name: Ensure dependencies are installed
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - "{{ dependencies }}"
+
+- name: Ensure sshd is running
+  ansible.builtin.service:
+    name: sshd
+    state: started
+    enabled: true
+
+- name: Download Vault's public key
+  ansible.builtin.get_url:
+    url: "{{ vault_public_key_url }}"
+    dest: "/etc/ssh/trusted-user-ca-keys.pem"
+    mode: "0644"
+
+- name: Check if sshd_config is configured to use the trusted CA keys
+  ansible.builtin.command: "grep -q '^TrustedUserCAKeys /etc/ssh/trusted-user-ca-keys.pem' /etc/ssh/sshd_config"
+  register: trusted_user_ca_keys_configured
+  changed_when: false
+  failed_when: false
+
+- name: Configure sshd to use the trusted CA keys
+  template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    mode: "0644"
+  notify: restart ssh
+  when: not trusted_user_ca_keys_configured.stdout
+
+- name: Ensure PubkeyAuthentication is enabled
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?PubkeyAuthentication"
+    line: "PubkeyAuthentication yes"
+    state: present
+  notify: restart ssh
+
+- name: Ensure AuthorizedPrincipalsFile is configured
+  file:
+    path: "/etc/ssh/auth_principals"
+    state: directory
+    mode: "0755"
+  when: hardening | default(False) | bool
+
+- name: Check if exists the authorized_principals_file for each user
+  stat:
+    path: "{{ authorized_principals_file | replace('%u', item) }}"
+  loop: "{{ users_list }}"
+  register: authorized_principals_file_exists
+  when: hardening | default(False) | bool
+
+- name: Create authorized_principals_file for each user only if not exists
+  file:
+    path: "{{ item.invocation.module_args.path }}"
+    state: touch
+    mode: '0644'
+  loop: "{{ authorized_principals_file_exists.results }}"
+  when:
+    - hardening | default(False) | bool
+    - not item.stat.exists
+
+
+- name: Configure AuthorizedPrincipalsFile
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?AuthorizedPrincipalsFile'
+    line: 'AuthorizedPrincipalsFile /etc/ssh/auth_principals/%u'
+    state: present
+  notify: restart sshd
+  when: hardening | default(False) | bool

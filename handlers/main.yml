@@ -1,2 +1,10 @@
 ---
-# handlers file for ansible-role
+# handlers file for vault_ssh_setup
+- name: Restart ssh
+  ansible.builtin.service:
+    name: "{{ ssh_service_name }}"
+    state: restarted
+
+- name: Set SSHD to be reloaded
+  ansible.builtin.set_fact:
+    sshd_config: true
